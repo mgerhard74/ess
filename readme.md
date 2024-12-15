@@ -13,6 +13,7 @@ Features:
 * Konfiguration eigener Profile 
 * API (HTTP/JSON)
 * Benötigt lediglich Python und USB-Ports (Raspberry, Synology NAS, ...)
+* NEU: Kann in der Nacht aus dem Netz laden
 
 Die reine Ansteuerung des Multiplus 2 im ESS Mode 3, ohne Weboberfläche etc. ist hier zu finden: https://github.com/martiby/multiplus2
 
