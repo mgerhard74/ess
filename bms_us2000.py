@@ -9,7 +9,7 @@ import serial  # pip install pyserial
 
 class US2000(BMS):
 
-    def __init__(self, port=None, baudrate=115200, pack_number=1, lifetime=20, log_name='us2000', pause=0.25):
+    def __init__(self, port=None, baudrate=115200, pack_number=1, lifetime=30, log_name='us2000', pause=0.5):
         """
         Service class with polling thread
 

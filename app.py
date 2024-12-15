@@ -1,5 +1,6 @@
 import logging
 import time
+import urllib.request
 from copy import deepcopy
 from datetime import datetime
 
@@ -15,12 +16,11 @@ from bms_us2000 import US2000
 from utils import *
 from web import AppWeb
 
-from bms_dummy import BMS_DUMMY
+# from bms_dummy import BMS_DUMMY
 
 """
 ESS Application
 """
-
 
 class App(FSM):
     def __init__(self):
@@ -45,7 +45,7 @@ class App(FSM):
                                  path=config['log_path'],
                                  csv_config=config.get('csv_log', None))
 
-        self.mode = 'off'  # Operation mode: 'off', 'auto', 'manual'
+        self.mode = 'auto'  # Operation mode: 'off', 'auto', 'manual'
         self.set_p = 0  # power set value
         self.setting = 0  # 0, 1, ... Index to usersettings from config/ui
 
@@ -125,6 +125,33 @@ class App(FSM):
 
             # print("loop {:.3f}s/{:.3f}s ".format(t_end - t_begin, time.perf_counter() - t_begin))
 
+            # =================================================================
+            # === Update Battery SOC to Domoticz ==============================
+            SOC_result = int(self.bms.soc or 0)
+            url = 'http://10.0.0.142:8080/json.htm?type=command&param=udevice&idx=35&nvalue=0&svalue={:d}'.format(SOC_result)
+            minute = int(time.strftime("%M"))
+            sekunde = int(time.strftime("%S"))
+            if (sekunde ==  0) and ((minute == 0) or ((minute % 5) == 0)):
+                try:
+                    with urllib.request.urlopen(url, timeout=2) as url:
+                        s = url.read()
+                except:
+                    s = ''
+            # =================================================================
+            # === Update MP II Power to Domoticz ==============================
+            try:
+                Power_result = int(self.multiplus.data['inv_p'] or 0)
+            except:
+                Power_result = 0
+            url = 'http://10.0.0.142:8080/json.htm?type=command&param=udevice&idx=37&nvalue=0&svalue={};0'.format(Power_result)
+            try:
+                with urllib.request.urlopen(url, timeout=1) as url:
+                    s = url.read()
+            except:
+                s = ''
+            # =================================================================
+
+
     def update_in(self):
         """
         Acquire all incoming data
@@ -135,12 +162,11 @@ class App(FSM):
         self.home_all_p = dictget(self.meterhub.data, 'home_all_p')
 
         # if self.home_all_p and self.car_p:
-        #     self.home_p = self.home_all_p - self.car_p
+        #    self.home_p = self.home_all_p - self.car_p
         if self.home_all_p:
             self.home_p = self.home_all_p
         else:
             self.home_p = None
-
 
 
     def fsm_switch(self):
@@ -177,7 +203,7 @@ class App(FSM):
         :return: bool
         """
         try:
-            p = self.pv_p - self.home_all_p - self.get_setting('charge_reserve_power')
+            p = (self.home_p * -1) + self.get_setting('charge_reserve_power')
         except:
             p = 0
 
@@ -198,11 +224,19 @@ class App(FSM):
 
         :return: bool
         """
+        if self.home_p > 0:
+            self.hausverbrauch = self.home_p
+        else:
+            self.hausverbrauch = 0
 
         try:
-            p = self.home_p - self.pv_p - self.get_setting('feed_reserve_power')
+            p =  self.hausverbrauch - self.get_setting('feed_reserve_power')
         except:
             p = 0
+
+        # Keine Einspeisung bei mehr als 2kW PV Leistung
+        if self.pv_p > 2000:
+           p = 0
 
         if p < self.get_setting('feed_min_power') or self.bms.soc_low is None or self.bms.soc_low < (
                 self.get_setting('feed_end_soc') + self.get_setting('feed_hysteresis_soc')):
@@ -282,6 +316,12 @@ class App(FSM):
             elif self.is_charge_start():
                 self.set_fsm_state('auto_charge')
 
+            if (self.get_setting('charge_night_end_soc') > 0) and (self.bms.soc <= self.get_setting('charge_night_end_soc')):
+                if (int(time.strftime("%H")) >= 10) and (int(time.strftime("%H")) <= 11):
+                     self.set_fsm_state('auto_night_charge')
+                     if mp2_state=='sleep':
+                          self.multiplus.wakeup()
+
             if self.state_timer.is_expired() and mp2_state != 'sleep':
                 self.state_timer.start(5)  # resend
                 self.log.info("[auto-idle] sleep")
@@ -292,15 +332,56 @@ class App(FSM):
             self.set_fsm_state('error')
 
     # ==================================================================================================================
+    #   AUTO_NIGHT_CHARGE
+    # ==================================================================================================================
+
+    def fsm_auto_night_charge(self, entry):
+
+        if entry:
+            self.log.info("AUTO-NIGHT-CHARGE")
+
+        try:
+            if (self.bms.soc == self.get_setting('charge_night_end_soc')):
+                self.set_fsm_state('auto_idle')
+
+            self.set_p = 2000
+
+        except Exception as e:
+            self.log.error("[auto_night_charge] exception {}".format(e))
+            self.set_fsm_state('error')
+
+
+    # ==================================================================================================================
     #   AUTO_CHARGE
     # ==================================================================================================================
+    p = 0
+
     def fsm_auto_charge(self, entry):
+        global p
+
         if entry:
             self.log.info("AUTO-CHARGE")
-        try:
-            p = self.pv_p - self.home_all_p - self.get_setting('charge_reserve_power')
+            p = 10
 
-            # print("p={} pv={} home_all={} home={} car={}".format(p, self.pv_p, self.home_all_p, self.home_p, self.car_p) )
+        try:
+            #p = self.pv_p - self.get_setting('charge_reserve_power')
+            if self.home_p > -30 and self.home_p < 0:
+                p = p
+            elif self.home_p < -30:
+                p = p + (round((self.home_p) * 0.12) * -1)
+            elif self.home_p > 0:
+                p = p - round(self.home_p * 0.12)
+
+            if p > self.get_setting('charge_max_power'):
+                p = self.get_setting('charge_max_power')
+            if p < 0:
+                p = 0
+            if self.bms.soc >= 95 and p > 500:
+                p = 500
+            if self.bms.soc >= 97 and p > 300:
+                p = 300
+
+            #print("p={} pv={} home_all={} home={} car={}".format(p, self.pv_p, self.home_all_p, self.home_p, self.car_p) )
             # ToDo Filter     schnell runter, langsam hoch
 
             charge_set_p = limit(p, 0, self.get_setting('charge_max_power'))  # limit to 0..max
@@ -330,14 +411,26 @@ class App(FSM):
     # ==================================================================================================================
     #   AUTO_FEED
     # ==================================================================================================================
+    p = 0
+
     def fsm_auto_feed(self, entry):
+        global p
+
         if entry:
             self.log.info("AUTO-FEED")
+            p = 10
 
         try:
-            p = self.home_p - self.pv_p - self.get_setting('feed_reserve_power')
+            #p = self.home_p - self.pv_p - self.get_setting('feed_reserve_power')
+            if self.home_p > -3 and self.home_p < 3:
+                p = p
+            else:
+                p = p + round(self.home_p * 0.12)
 
-            if self.bms.soc_low and self.bms.soc_low <= 25:
+            if p > self.get_setting('feed_max_power'):
+                p = self.get_setting('feed_max_power')
+
+            if self.bms.soc <= 25:
                 max_p = self.get_setting('feed_soc25_max_power')
             else:
                 max_p = self.get_setting('feed_max_power')
@@ -397,10 +490,10 @@ class App(FSM):
         if entry:
             self.log.info("MANUAL")
             self.set_p = 0
-            self.state_timer.start(5)
+            self.state_timer.start(50000)
 
         if self.ui_command and 'manual_set_p' in self.ui_command:
-            self.state_timer.start(5)
+            self.state_timer.start(50000)
             self.log.info("manual command by api: {}".format(self.ui_command))
             try:
                 self.set_p = self.ui_command['manual_set_p']
@@ -422,6 +515,7 @@ class App(FSM):
             self.mode = 'off'
 
     def get_state(self, bms_detail=False):
+
         """
         Get current state as dictionary (for API)
 
@@ -466,6 +560,8 @@ class App(FSM):
                 s = "Automatik - Laden"
             elif self._fsm_state == 'auto_feed' and mp2_state == 'on':
                 s = "Automatik - Einspeisen"
+            elif self._fsm_state == 'auto_night_charge' and mp2_state == 'on':
+                s = "Automatik - Nachtladen"
             elif mp2_state == 'wait':
                 s = "Automatik - Warten"
             return s
