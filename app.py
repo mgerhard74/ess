@@ -317,7 +317,7 @@ class App(FSM):
                 self.set_fsm_state('auto_charge')
 
             if (self.get_setting('charge_night_end_soc') > 0) and (self.bms.soc <= self.get_setting('charge_night_end_soc')):
-                if (int(time.strftime("%H")) >= 10) and (int(time.strftime("%H")) <= 11):
+                if (int(time.strftime("%H")) >= 1) and (int(time.strftime("%H")) <= 4):
                      self.set_fsm_state('auto_night_charge')
                      if mp2_state=='sleep':
                           self.multiplus.wakeup()
