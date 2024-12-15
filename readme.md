@@ -9,7 +9,7 @@ Features:
 * Nulleinspeisungsregelung
 * Integrierter Webserver mit Web-App
 * Multiplus-II Sleepmode (1,3Watt)
-* Integration des Pylontech US2000 BMS 
+* Integration des Pylontech US2000/US5000 BMS 
 * Konfiguration eigener Profile 
 * API (HTTP/JSON)
 * Benötigt lediglich Python und USB-Ports (Raspberry, Synology NAS, ...)
@@ -25,8 +25,8 @@ Die reine Ansteuerung des Multiplus 2 im ESS Mode 3, ohne Weboberfläche etc. is
 
 * Victron Multiplus-II 
 * Victron MK3-USB-Interface
-* Pylontech US2000
-* Stromzähler: Eastron SDM630 
+* Pylontech US2000/3000/5000
+* Stromzähler: Eastron SDM630 / AMIS Lesekopf für NetzOÖ Smartmeter
 * 2x Waveshare USB TO RS485 
 
 ![](doc/ess_hw_block.png)
