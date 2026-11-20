@@ -18,7 +18,7 @@ Die reine Ansteuerung des Multiplus 2 im ESS Mode 3, ohne Weboberfläche etc. is
 
 ## Webserver / Web-App
 
-![](doc/Screenshot 2026-11-20 171159.png)
+![](doc/Screenshot2026-11-20_171159.png)
 
 ## Hardware
 
