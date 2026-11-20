@@ -8,7 +8,7 @@ class Trace:
 
     def __init__(self):
         self.buffer = []
-        self.size = 300  # 5min
+        self.size = 500  # [s] ~8 min (one dataset per cycle, cycle_time 1 s)
 
     def push(self, data):
         """

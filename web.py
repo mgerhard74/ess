@@ -234,7 +234,7 @@ class AppWeb:
         for t in self.app.trace.buffer:
 
             grid = dictget(t, ('meterhub', 'grid_p'))
-            bat = dictget(t, ('meterhub', 'bat_p'))
+            bat = dictget(t, ('multiplus', 'bat_p'))  # battery power from multiplus (+ charge, - feed), meterhub has no battery meter
             home_all = dictget(t, ('meterhub', 'home_all_p'))
             car = dictget(t, ('meterhub', 'car_p'), 0)
             home = dictget(t, ('meterhub', 'home_p'))

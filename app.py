@@ -41,7 +41,9 @@ class App(FSM):
         self.config = config
         self.cycle_time = config.get('cycle_time', 0.75)  # [s] mainloop cycle time
         self.gain = config.get('regulator_gain', 0.12)  # regulator gain, power up (more charge / feed)
-        self.gain_down = config.get('regulator_gain_down', self.gain)  # regulator gain, power down (faster)
+        self.gain_max = config.get('regulator_gain_max', self.gain)  # regulator gain at big grid error
+        self.gain_low = config.get('regulator_gain_low', 100)  # [W] up to this error: regulator_gain
+        self.gain_high = config.get('regulator_gain_high', 1500)  # [W] from this error: regulator_gain_max
         self.feed_target = config.get('feed_grid_target', (-5, 0))  # [W] (min, max) grid power target while feeding
         self.meterhub = ApiRequest(config['meterhub_address'], timeout=0.5, lifetime=10, log_name='meterhub')
         self.ha = HaReport(config.get('ha_webhook_url'), interval=config.get('ha_interval', 10), timeout=1)  # Home Assistant, own thread
@@ -100,6 +102,17 @@ class App(FSM):
             return self.config['setting'][self.setting][name]  # use custom setting
         else:
             return self.config['setting'][0][name]  # default or fallback to default
+
+    def reg_gain(self, err):
+        """
+        Regulator gain depending on the grid error: small error (own consumption) regulator_gain,
+        big error (e.g. 2000 W consumer switched) up to regulator_gain_max, linear between low and high.
+        """
+        e = abs(err)
+        if e <= self.gain_low or self.gain_high <= self.gain_low:
+            return self.gain
+        a = min((e - self.gain_low) / (self.gain_high - self.gain_low), 1.0)
+        return self.gain + a * (self.gain_max - self.gain)
 
     def charge_top_limit(self, p):
         """
@@ -569,9 +582,9 @@ class App(FSM):
             if self.home_p > -30 and self.home_p < 0:  # deadband, target 0 W at grid meter
                 self.reg_p = self.reg_p
             elif self.home_p < -30:  # grid export -> charge more
-                self.reg_p = self.reg_p + round(-self.home_p * self.gain)
+                self.reg_p = self.reg_p + round(-self.home_p * self.reg_gain(self.home_p))
             elif self.home_p > 0:  # grid import -> charge less (fast down)
-                self.reg_p = self.reg_p - round(self.home_p * self.gain_down)
+                self.reg_p = self.reg_p - round(self.home_p * self.reg_gain(self.home_p))
 
             if self.reg_p > self.get_setting('charge_max_power'):
                 self.reg_p = self.get_setting('charge_max_power')
@@ -631,9 +644,9 @@ class App(FSM):
             if t_min <= self.home_p <= t_max:  # deadband, inside target range
                 self.reg_p = self.reg_p
             elif feed_err > 0:  # grid import above target -> feed more
-                self.reg_p = self.reg_p + round(feed_err * self.gain)
+                self.reg_p = self.reg_p + round(feed_err * self.reg_gain(feed_err))
             else:  # below target / grid export -> feed less (fast down)
-                self.reg_p = self.reg_p + round(feed_err * self.gain_down)
+                self.reg_p = self.reg_p + round(feed_err * self.reg_gain(feed_err))
 
             if self.reg_p > self.get_setting('feed_max_power'):
                 self.reg_p = self.get_setting('feed_max_power')

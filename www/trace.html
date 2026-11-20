@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1" name="viewport">
+    <meta content="" name="description">
+    <meta content="Martin Steppuhn" name="author">
+    <title>TRACE</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            font-size: 13px;
+            margin: 8px;
+        }
+
+        #toolbar {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 4px;
+        }
+
+        #status {
+            color: #888888;
+        }
+    </style>
+</head>
+<body>
+<div id="toolbar">
+    <label><input type="checkbox" id="auto-refresh" checked> Auto-Refresh</label>
+    <label>alle
+        <select id="refresh-interval">
+            <option value="1000">1 s</option>
+            <option value="2000" selected>2 s</option>
+            <option value="5000">5 s</option>
+            <option value="10000">10 s</option>
+        </select>
+    </label>
+    <span id="status"></span>
+</div>
+<canvas height="300" id="chart" width="800"></canvas>
+<script>
+    const color = ['#5899DA', '#E8743B', '#19A979', '#ED4A7B', '#945ECF', '#13A4B4', '#525DF4', '#BF399E', '#6C8893', '#EE6868', '#2F6497'];
+    const series = [['grid', 'Grid', 1], ['bat_charge', 'BAT-Charge', 2], ['bat_feed', 'BAT-Feed', 3],
+        ['charge_set', 'Charge-Set', 4], ['feed_set', 'Feed-Set', 5]];
+    let cht = null;
+    let timer = null;
+
+    // x axis: seconds before now (newest value = 0)
+    function labels(c) {
+        let n = c.x.length;
+        return c.x.map((v, i) => i - (n - 1));
+    }
+
+    function create(c) {
+        const data = {
+            labels: labels(c),
+            datasets: series.map(([key, label, col]) => ({
+                data: c[key], label: label, backgroundColor: color[col], borderColor: color[col],
+                pointRadius: 1.5, borderWidth: 1.5
+            }))
+        };
+        cht = new Chart(document.getElementById('chart'), {
+            type: 'line', data: data,
+            options: {
+                animation: false,
+                interaction: {mode: 'index', intersect: false},
+                scales: {
+                    x: {title: {display: true, text: 'Zeit [s]  (0 = jetzt)'}, ticks: {maxTicksLimit: 26}},
+                    y: {title: {display: true, text: 'Leistung [W]'}}
+                }
+            }
+        });
+    }
+
+    function update(c) {
+        cht.data.labels = labels(c);
+        series.forEach(([key], i) => cht.data.datasets[i].data = c[key]);  // keeps hidden series hidden
+        cht.update('none');
+    }
+
+    function refresh() {
+        fetch('chart', {cache: 'no-store'})
+            .then(r => r.text())
+            .then(t => {
+                update(JSON.parse(t.slice(t.indexOf('{'))));  // "var chart ={...}"
+                document.getElementById('status').textContent = 'aktualisiert ' + new Date().toLocaleTimeString('de-AT');
+            })
+            .catch(e => document.getElementById('status').textContent = 'Fehler: ' + e);
+    }
+
+    function schedule() {
+        clearInterval(timer);
+        if (document.getElementById('auto-refresh').checked) {
+            timer = setInterval(refresh, Number(document.getElementById('refresh-interval').value));
+        }
+    }
+
+    window.onload = function () {
+        create(chart);
+        document.getElementById('status').textContent = 'geladen ' + new Date().toLocaleTimeString('de-AT');
+        document.getElementById('auto-refresh').addEventListener('change', schedule);
+        document.getElementById('refresh-interval').addEventListener('change', schedule);
+        schedule();
+    }
+</script>
+<script src="lib/chart.js-3.8.0/chart.min.js"></script>
+<script>window.Chart || document.write('<script src="https://cdn.jsdelivr.net/npm/chart.js@3.8.0/dist/chart.min.js"><\/script>');  // local lib missing -> CDN</script>
+<script src="/chart"></script>
+</body>
+</html>
