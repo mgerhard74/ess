@@ -10,7 +10,7 @@ Features:
 * Integrierter Webserver mit Web-App
 * Multiplus-II Sleepmode (1,3Watt)
 * Integration des Pylontech US2000 BMS 
-* Konfiguration eigener Profile 
+* Konfiguration eigener Profile (u.a. Nacht-Laden aus dem Netz)
 * API (HTTP/JSON)
 * Benötigt lediglich Python und USB-Ports (Raspberry, Synology NAS, ...)
 
