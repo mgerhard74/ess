@@ -5,9 +5,9 @@ except ImportError:
 
 config = { 'meterhub_address': 'http://10.0.0.158:8008',
     'cycle_time': 1.0,           # [s] mainloop cycle time (regulation), synced to meterhub/AMIS ~1s
-    'regulator_gain': 0.11,      # charge/feed regulator gain per cycle at small grid error (own consumption)
+    'regulator_gain': 0.07,      # charge/feed regulator gain per cycle at small grid error (own consumption)
     'regulator_gain_max': 0.175, # regulator gain at big grid error (e.g. 2000 W consumer switched on / off)
-    'regulator_gain_low': 100,   # [W] up to this grid error: regulator_gain
+    'regulator_gain_low': 30,    # [W] up to this grid error: regulator_gain
     'regulator_gain_high': 1500, # [W] from this grid error: regulator_gain_max (linear between)
     'feed_grid_target': (0, 5),  # [W] target range grid import at AMIS while feeding (min, max)
     'ha_webhook_url': secret.get('ha_webhook_url', ''),  # Home Assistant, set in config_secret.py, '' = off
