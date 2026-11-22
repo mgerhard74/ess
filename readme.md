@@ -26,7 +26,7 @@ Die reine Ansteuerung des Multiplus 2 im ESS Mode 3, ohne Weboberfläche etc. is
 * Victron MK3-USB-Interface
 * Pylontech US2000/US3000/US5000
 * Stromzähler: AMIS Lesekopf für NetzOÖ Smartmeter (Rest, MQTT) ; Shelly PRO 3EM (Rest)
-* 2x Waveshare USB TO RS485 
+* Waveshare USB TO RS485 
 
 ![](doc/ess_hw_block.png)
 
