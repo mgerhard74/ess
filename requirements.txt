@@ -2,3 +2,4 @@ pyserial
 bottle
 waitress
 requests
+paho-mqtt  # only for grid meter via MQTT (Debian: apt install python3-paho-mqtt)

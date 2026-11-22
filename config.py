@@ -3,8 +3,25 @@ try:
 except ImportError:
     secret = {}
 
-config = { 'meterhub_address': 'http://10.0.0.158:8008',
-    'cycle_time': 1.0,           # [s] mainloop cycle time (regulation), synced to meterhub/AMIS ~1s
+config = {
+    # Smart meter / PV, read directly by ESS
+    'meter': {
+        # grid meter priority list, the following meters are the backup:
+        #   'amis' AMIS reader REST (amis_address), 'shelly' Shelly Pro 3EM (shelly_3em_address),
+        #   'mqtt' AMIS reader via MQTT (mqtt_address, mqtt_topic, mqtt_user / mqtt_password in config_secret.py)
+        'grid_meter': ['amis'],
+        'grid_meter_interval': 0.25,  # [s] REST poll interval (meter sends a new value every second)
+        'amis_address': '10.0.0.152',
+        'shelly_3em_address': '',
+        'shelly_3em_invert': False,  # True, if the Shelly current clamps measure in the wrong direction
+        'mqtt_address': '10.0.0.190',
+        'mqtt_port': 1883,
+        'mqtt_topic': 'amis/user1',
+        'fronius_address': '10.0.0.141',  # Fronius PV inverter, '' = no PV reading (pv_p = 0)
+        'fronius_interval': 3,  # [s] Fronius poll interval (not reachable at night -> pv_p = 0, no error)
+        'lifetime': 10,  # [s] last valid values are used this long after a read error
+    },
+    'cycle_time': 1.0,           # [s] mainloop cycle time (regulation), synced to smart meter ~1s
     'regulator_gain': 0.07,      # charge/feed regulator gain per cycle at small grid error (own consumption)
     'regulator_gain_max': 0.175, # regulator gain at big grid error (e.g. 2000 W consumer switched on / off)
     'regulator_gain_low': 30,    # [W] up to this grid error: regulator_gain
@@ -139,7 +156,7 @@ config = { 'meterhub_address': 'http://10.0.0.158:8008',
     #            'columns': [      # first entry is the name, second and so on the route inside main dataset /api/state
     #                ('time', 'ess', 'time'),
     #                ('state', 'ess', 'state'),
-    #                ('bat_ac_p', 'meterhub', 'bat_p'),
+    #                ('bat_ac_p', 'meter', 'bat_p'),
     #                ('mp2_bat_u', 'multiplus', 'bat_u'),
     #                ('mp2_bat_i', 'multiplus', 'bat_i'),
     #                ('bms_u0', 'bms', 'pack_u', 0),

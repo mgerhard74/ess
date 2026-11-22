@@ -1,13 +1,15 @@
 [Unit]
 Description=ESS
 After=network.target
+StartLimitIntervalSec=0
 
 [Service]
 ExecStart=/usr/bin/python3 -u ess.py
 WorkingDirectory=/home/pi/ess
 StandardOutput=inherit
 StandardError=inherit
-Restart=no
+Restart=always
+RestartSec=10
 User=pi
 
 [Install]

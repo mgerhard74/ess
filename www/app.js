@@ -290,7 +290,7 @@ app.show_state = function (state) {
     let self = app;
 
     // state.ess.state = 'error';  // Fake for test
-    // state.meterhub.error = 'error';  // Fake for test
+    // state.meter.error = 'error';  // Fake for test
     // state.multiplus.error = 'error';  // Fake for test
     // state.bms.error = 'error';  // Fake for test
     // console.log(state);
@@ -298,12 +298,12 @@ app.show_state = function (state) {
     // fake state
     // state.ess.time = "2022-11-21 14:54";
     // state.ess.info = "Automatik - Laden";
-    // state.meterhub.pv1_p = 1265;
-    // state.meterhub.pv2_p = 1608;
-    // state.meterhub.pv_p = 2873;
-    // state.meterhub.home_p = 432;
-    // state.meterhub.bat_p = 1602;
-    // state.meterhub.grid_p = -839;
+    // state.meter.pv1_p = 1265;
+    // state.meter.pv2_p = 1608;
+    // state.meter.pv_p = 2873;
+    // state.meter.home_p = 432;
+    // state.meter.bat_p = 1602;
+    // state.meter.grid_p = -839;
     // state.bms.soc = 81;
 
     self.state = state;
@@ -350,10 +350,10 @@ app.show_dashboard_state = function (state) {
     // === PFlow ===
     let d = {
         pv: {
-            power: state?.meterhub?.pv_p   //,
-            //subline: 'Süd: ' + (state?.meterhub?.pv1_p ?? '---') + ' W  Nord: ' + (state?.meterhub?.pv2_p ?? '---') + ' W',
+            power: state?.meter?.pv_p   //,
+            //subline: 'Süd: ' + (state?.meter?.pv1_p ?? '---') + ' W  Nord: ' + (state?.meter?.pv2_p ?? '---') + ' W',
         },
-        home: {power: state?.meterhub?.home_p},
+        home: {power: state?.meter?.home_p},
         bat: {
             power: state?.multiplus?.bat_p,
             error: state?.ess?.state === 'error',
@@ -361,21 +361,21 @@ app.show_dashboard_state = function (state) {
             subline: state?.ess?.info
         },
         car: {
-            power: state?.meterhub?.car_p,
-            disable: !state?.meterhub?.car_plug,
-            info: ((state?.meterhub?.car_e_cycle ?? 0) > 0) ? (state?.meterhub?.car_e_cycle / 1000).toFixed(1) + ' kWh' : '',
-            subline: state?.meterhub?.car_info,
+            power: state?.meter?.car_p,
+            disable: !state?.meter?.car_plug,
+            info: ((state?.meter?.car_e_cycle ?? 0) > 0) ? (state?.meter?.car_e_cycle / 1000).toFixed(1) + ' kWh' : '',
+            subline: state?.meter?.car_info,
 
-            wallbox_pvready: state?.meterhub?.car_pv_ready,
-            wallbox_stop: state?.meterhub?.car_stop,
-            wallbox_amp: (state?.meterhub?.car_phase && state?.meterhub?.car_amp) ? state?.meterhub?.car_phase + 'x' + state?.meterhub?.car_amp + 'A' : 'xxx'
+            wallbox_pvready: state?.meter?.car_pv_ready,
+            wallbox_stop: state?.meter?.car_stop,
+            wallbox_amp: (state?.meter?.car_phase && state?.meter?.car_amp) ? state?.meter?.car_phase + 'x' + state?.meter?.car_amp + 'A' : 'xxx'
 
         },
         heat: {
-            power: state?.meterhub?.heat_p
+            power: state?.meter?.heat_p
         },
         grid: {
-            power: state?.meterhub?.grid_p
+            power: state?.meter?.grid_p
         }
     };
     self.pflow.update(d);
@@ -402,7 +402,7 @@ app.show_detail_values = function (state) {
     });
 
     // set title on error
-    $id('meterhub-title').style.backgroundColor = (state?.meterhub?.error) ? '#ff4f4f' : '#fff';
+    $id('meter-title').style.backgroundColor = (state?.meter?.error) ? '#ff4f4f' : '#fff';
     $id('mp2-title').style.backgroundColor = (state?.multiplus?.error) ? '#ff4f4f' : '#fff';
     $id('bms-title').style.backgroundColor = (state?.bms?.error) ? '#ff4f4f' : '#fff';
 
@@ -414,16 +414,16 @@ app.show_detail_values = function (state) {
     $id('ess-mode').textContent = state?.ess?.mode ?? '?';
     $id('ess-state').textContent = state?.ess?.state ?? '?';
 
-    // Meterhub
-    // let car_p = state?.meterhub?.car_p;
-    // let home_all_p = state?.meterhub?.home_all_p;
+    // Smart meter / PV
+    // let car_p = state?.meter?.car_p;
+    // let home_all_p = state?.meter?.home_all_p;
     // let home_p = home_all_p === null || car_p === null ? home_all_p : home_all_p - car_p;
 
-    set_val('meter-pv-p', state?.meterhub?.pv_p, ' W');
-    set_val('meter-grid-p', state?.meterhub?.grid_p, ' W');
-    //set_val('meter-bat-p', state?.meterhub?.bat_p, ' W');
-    if(config_enable_car) set_val('meter-car-p', state?.meterhub?.car_p, ' W');
-    if(config_enable_heat) set_val('meter-heat-p', state?.meterhub?.heat_p, ' W');
+    set_val('meter-pv-p', state?.meter?.pv_p, ' W');
+    set_val('meter-grid-p', state?.meter?.grid_p, ' W');
+    //set_val('meter-bat-p', state?.meter?.bat_p, ' W');
+    if(config_enable_car) set_val('meter-car-p', state?.meter?.car_p, ' W');
+    if(config_enable_heat) set_val('meter-heat-p', state?.meter?.heat_p, ' W');
 
     // Multiplus
     $id('mp2-state').textContent = state?.multiplus?.state ?? '--';

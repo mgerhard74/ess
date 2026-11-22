@@ -5,7 +5,6 @@ from copy import deepcopy
 from datetime import datetime
 
 import version
-from api_request import ApiRequest
 from blackbox import Blackbox
 from config import config
 from fsm import FSM
@@ -14,6 +13,8 @@ from multiplus2 import MultiPlus2
 from timer import Timer
 from trace import Trace
 from bms_us2000 import US2000
+from config import secret
+from meter.local_meter import LocalMeter
 from utils import *
 from web import AppWeb
 
@@ -45,7 +46,7 @@ class App(FSM):
         self.gain_low = config.get('regulator_gain_low', 100)  # [W] up to this error: regulator_gain
         self.gain_high = config.get('regulator_gain_high', 1500)  # [W] from this error: regulator_gain_max
         self.feed_target = config.get('feed_grid_target', (-5, 0))  # [W] (min, max) grid power target while feeding
-        self.meterhub = ApiRequest(config['meterhub_address'], timeout=0.5, lifetime=10, log_name='meterhub')
+        self.meter = LocalMeter(config.get('meter', {}), secret)  # smart meter and PV, each device in own thread
         self.ha = HaReport(config.get('ha_webhook_url'), interval=config.get('ha_interval', 10), timeout=1)  # Home Assistant, own thread
 
         if 'bms_us2000' in config:
@@ -73,7 +74,7 @@ class App(FSM):
         self.error_ack_date = datetime.now().date()
         self.error_ack_timer = Timer()
 
-        # values from MeterHub and BMS
+        # values from smart meter / PV and BMS
         self.grid_p = 0
         self.home_p = 0
         self.home_all_p = 0
@@ -172,11 +173,10 @@ class App(FSM):
             t_begin = time.perf_counter()  # cycle start time
             self.reset_daily_error_ack_count()
 
-            # === meterhub ===================================================   ~ 15ms
+            # === smart meter / PV ==========================================   ~ 0ms (threads)
 
-            self.meterhub.read(
-                post={'bat_info': self.get_info_text(), 'bat_soc': self.bms.soc})
-            self.log.debug("meterhub {}".format(self.meterhub.data))
+            self.meter.read()
+            self.log.debug("meter {}".format(self.meter.data))
 
             # === bms ===================================================   ~ 0ms (Thread)
 
@@ -228,10 +228,10 @@ class App(FSM):
         """
         Acquire all incoming data
         """
-        self.grid_p = dictget(self.meterhub.data, 'grid_p')
-        self.car_p = dictget(self.meterhub.data, 'car_p')
-        self.pv_p = dictget(self.meterhub.data, 'pv_p')
-        self.home_all_p = dictget(self.meterhub.data, 'home_all_p')
+        self.grid_p = dictget(self.meter.data, 'grid_p')
+        self.car_p = dictget(self.meter.data, 'car_p')
+        self.pv_p = dictget(self.meter.data, 'pv_p')
+        self.home_all_p = dictget(self.meter.data, 'home_all_p')
 
         # if self.home_all_p and self.car_p:
         #    self.home_p = self.home_all_p - self.car_p
@@ -258,8 +258,8 @@ class App(FSM):
         elif self.bms.temperature and self.bms.temperature > self.config['t_max']:
             self.log.error("error max bms temperature {}".format(self.bms.get_state()))
             self.set_fsm_state('error')
-        elif not self.is_meterhub_ready():
-            self.log.error("meterhub error {}".format(self.meterhub.data))
+        elif not self.is_meter_ready():
+            self.log.error("meter error {}".format(self.meter.data))
             self.set_fsm_state('error')
         elif self.bms.error:
             self.log.error("bms error {}".format(self.bms.get_state()))
@@ -334,8 +334,8 @@ class App(FSM):
                 return True
         return False
 
-    def is_meterhub_ready(self):
-        return True if self.meterhub.data and 'error' not in self.meterhub.data else False
+    def is_meter_ready(self):
+        return True if self.meter.data and 'error' not in self.meter.data else False
 
     def is_multiplus_ready(self):
         return True if self.multiplus.data and 'error' not in self.multiplus.data else False
@@ -434,12 +434,12 @@ class App(FSM):
             self.set_p = 0
             self.state_timer.start(10)
 
-        if self.is_meterhub_ready() and not self.bms.error and self.is_multiplus_ready():
+        if self.is_meter_ready() and not self.bms.error and self.is_multiplus_ready():
             self.fsm_switch()
 
         if self.state_timer.is_expired():
-            if not self.is_meterhub_ready():
-                self.log.error("meterhub error {}".format(self.meterhub.data))
+            if not self.is_meter_ready():
+                self.log.error("meter error {}".format(self.meter.data))
             if self.bms.error:
                 self.log.error("bms error {}".format(self.bms.get_state()))
             if not self.is_multiplus_ready():
@@ -765,7 +765,7 @@ class App(FSM):
                 'setting': self.setting,
                 'info': self.get_info_text()
             },
-            'meterhub': self.meterhub.data,
+            'meter': self.meter.data,
             'bms': self.bms.get_state(),
             'multiplus': self.multiplus.data,
         }

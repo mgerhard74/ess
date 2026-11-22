@@ -77,8 +77,6 @@ class AppWeb:
             self.log.debug(
                 "request to: {} from: {} with valid session_id: {}".format(filepath, remote_addr, session_id))
 
-            bottle.TEMPLATES.clear()  # DEBUG !!!!
-
             # https://pwp.stevecassidy.net/bottle/templating/
 
             d = {
@@ -226,18 +224,18 @@ class AppWeb:
         """
 
         """
-        # chart = self.app.trace.get_chart([('home', ('meterhub', 'home_all_p')), ('grid', ('meterhub', 'grid_p')), ('grid', ('meterhub', 'car_p'))])
+        # chart = self.app.trace.get_chart([('home', ('meter', 'home_all_p')), ('grid', ('meter', 'grid_p')), ('grid', ('meter', 'car_p'))])
 
         chart = {'x': [], 'home': [], 'grid': [], 'bat_feed': [], 'bat_charge': [], 'charge_set': [], 'feed_set': []}
 
         i = 0
         for t in self.app.trace.buffer:
 
-            grid = dictget(t, ('meterhub', 'grid_p'))
-            bat = dictget(t, ('multiplus', 'bat_p'))  # battery power from multiplus (+ charge, - feed), meterhub has no battery meter
-            home_all = dictget(t, ('meterhub', 'home_all_p'))
-            car = dictget(t, ('meterhub', 'car_p'), 0)
-            home = dictget(t, ('meterhub', 'home_p'))
+            grid = dictget(t, ('meter', 'grid_p'))
+            bat = dictget(t, ('multiplus', 'bat_p'))  # battery power from multiplus (+ charge, - feed), no battery meter
+            home_all = dictget(t, ('meter', 'home_all_p'))
+            car = dictget(t, ('meter', 'car_p'), 0)
+            home = dictget(t, ('meter', 'home_p'))
 
             set_p = dictget(t, ('ess', 'set_p'))
             try:
